@@ -222,7 +222,7 @@
             var showToast = content => {
                 $( '.toast' ).innerHTML = content;
                 $( '.toast' ).classList.add( "show" );
-                setTimeout( () => $( '.toast' ).classList.remove( "show" ), 3000 );
+                setTimeout( () => $( '.toast' ).classList.remove( "show" ), 3_000 );
             }
         </script>
         <script>
@@ -350,7 +350,7 @@
                 var nwc_info = nwcjs.processNWCstring( nwc_string );
                 var delay_tolerance = 10;
                 console.log( 'loading...' );
-                var invoice_data = await nwcjs.makeInvoice( nwc_info, 10_000, "test_workshop", delay_tolerance );
+                var invoice_data = await nwcjs.makeInvoice( nwc_info, 15_000, "test_workshop", delay_tolerance );
 
                 //display the invoice
                 var bolt11 = invoice_data.result.invoice;
@@ -397,12 +397,12 @@
                 var ticket = invoice_data.result.payment_hash;
                 await nwcjs.waitSomeSeconds( 1 );
                 var url = ticket;
-                var a = document.createElement( "a" );
-                a.href = url;
-                a.target = "_blank";
-                a.append( createQR( ticket.toUpperCase() ) );
+                var div = document.createElement( "div" );
+                div.href = url;
+                div.target = "_blank";
+                div.append( createQR( ticket.toUpperCase() ) );
                 var prep_div = document.createElement( "div" );
-                prep_div.append( a );
+                prep_div.append( div );
                 var div_html = prep_div.innerHTML;
 
                 //I often delete the next four lines and just work with div_html -- see 'For a pretty donation box try this'
