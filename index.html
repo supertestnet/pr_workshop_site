@@ -304,14 +304,20 @@
         </div>
         <script>
             //nwcjs.bytesToHex( nobleSecp256k1.utils.randomPrivateKey() );
-            var nostr_privkey = 'a0d63fe3ebf0eda0d750e8e38b19a564d7f3faf6ae5c7181ee39be17fdbbab67';
+            var nostr_privkey = 'ea4f49a2103cac3c46dbf06a420c404a98e42a5536ec42edd0faeba938efae82';
             var nostr_pubkey = super_nostr.getPubkey( nostr_privkey );
             var relay = 'wss://relay.notoshi.win/';
             var tickets = [];
             var tickets_loaded = false;
             (async()=>{
                 var events = await super_nostr.getEvents( relay, null, [ nostr_pubkey ] );
-                events.forEach( event => tickets.push( event.content ) );
+                var i; for ( i=0; i<events.length; i++ ) {
+                    var event = events[ i ];
+                    try {
+                        var ticket_info = JSON.parse( event.content );
+                        if ( ticket_info[ 0 ] === "LN" ) tickets.push( ticket_info[ 1 ] );
+                    } catch ( e ) {}
+                }
                 var num_remaining = 8 - events.length;
                 if ( num_remaining < 0 ) num_remaining = 0;
                 $( '.tickets_remaining' ).innerText = num_remaining;
@@ -400,7 +406,7 @@
                 $( '.tickets_remaining' ).innerText = Number( $( '.tickets_remaining' ).innerText ) - 1;
 
                 //send event to nostr so ticket info is logged
-                var event = await super_nostr.prepEvent( nostr_privkey, invoice_data.result.payment_hash, 44382 );
+                var event = await super_nostr.prepEvent( nostr_privkey, JSON.stringify([ "LN", invoice_data.result.payment_hash ]), 44382 );
                 super_nostr.sendEvent( event, relay );
             }
             var showPage = page => {
