@@ -5,10 +5,19 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <title>Bitcoin Script Workshop</title>
         <script src="https://bundle.run/noble-secp256k1@1.2.14"></script>
+        <script src="https://unpkg.com/@cmdcode/tapscript@1.5.3"></script>
         <script src="https://supertestnet.github.io/nwcjs/nwcjs.js"></script>
         <script src="https://supertestnet.github.io/bankify/super_nostr.js"></script>
         <script src="https://supertestnet.github.io/bitcoin-chess/js/qrcode.js"></script>
+        <script src="https://supertestnet.github.io/bitcoin-chess/js/qrcode.js"></script>
+        <script src="https://supertestnet.github.io/testnet_generator/chain_client.js"></script>
         <script>
+            var tickets = [];
+            var tickets_loaded = false;
+            // var server = `wss://blackie.c3-soft.com:57012`;
+            var server = `wss://mempool.guide/electrum-websocket/`;
+            var getNativeSegwitAddressFromPubkeyHex = pubkeyhex => tapscript.Address.p2wpkh.fromPubKey( pubkeyhex );
+            // var getNativeSegwitAddressFromPubkeyHex = pubkeyhex => tapscript.Address.p2wpkh.fromPubKey( pubkeyhex, "testnet" );
             var createQR = content => {
                 var dataUriPngImage = document.createElement( "img" ),
                 s = QRCode.generatePNG( content, {
@@ -24,6 +33,32 @@
                 dataUriPngImage.style.width = "100%";
                 return dataUriPngImage;
             }
+            var bolt11 = null;
+            var l1_pubkeys = [
+                "0399c122f3e41c1318c8eb929e61a9b67e22109bc83e7122fb8131a2db2d571101",
+                "0257853fadebb3854a19f4264a95dc986bc2c6cd35e3a9ef4bee66a3d15bb77219",
+                "022483f5116b6a6314f381d77d8f68f187e354207c63dbe2637a94b5f6edad3481",
+                "03688b4c5af22dcd719860900a940186ada7f0331235db3161ad3d13476806738f",
+                "034b60c843fb5cb68130ade42d336b4bd6774200a2c71d50e07c83ee918226fdce",
+                "034fecf79778e15b338ded123eb4f8dfac4a78d9504d49b80bde4857c2875223e0",
+                "03fa5047d9cdcce0038a151637aae149f7ba7c903b96c879afb84e353e9356d077",
+            ];
+            var unused_l1_pubkeys = [];
+            var populateUnusedPubkeys = async () => {
+                var i; for ( i=0; i<l1_pubkeys.length; i++ ) {
+                    var address = getNativeSegwitAddressFromPubkeyHex( l1_pubkeys[ i ] );
+                    var utxos = await chain_client.commander( server, 'utxos', address );
+                    if ( !utxos.length ) {
+                        unused_l1_pubkeys.push( l1_pubkeys[ i ] );
+                    } else {
+                        tickets.push( l1_pubkeys[ i ] );
+                        var tickets_remaining = 8 - tickets.length;
+                        if ( tickets_remaining < 0 ) tickets_remaining = 0;
+                        $( '.tickets_remaining' ).innerText = tickets_remaining;
+                    }
+                }
+            }
+            populateUnusedPubkeys();
         </script>
         <style>
             * {
@@ -135,11 +170,42 @@
                 border-radius: 1rem;
                 padding: 1rem;
             }
+            .ticket_center {
+                text-align: center;
+            }
             .ticket_box {
                 max-width: 15rem;
                 margin: auto;
                 font-size: 80%;
                 text-align: center;
+            }
+            .pill-switch {
+                display: inline-flex;
+                background: #ed2929;
+                border-radius: 999px;
+                padding: 6px;
+                margin-bottom: 1rem;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            }
+            .pill-btn {
+                padding: 12px 32px;
+                font-size: .8rem;
+                font-weight: 500;
+                color: white;
+                background: transparent;
+                border: none;
+                border-radius: 999px;
+                cursor: pointer;
+                transition: all 0.25s ease;
+                user-select: none;
+            }
+            .pill-btn.active {
+                background: #a6bbff;
+                color: white;
+                box-shadow: 0 2px 12px rgba(99, 102, 241, 0.5);
+            }
+            .pill-btn:hover:not(.active) {
+                color: #a6bbff;
             }
             @media screen and (max-width: 600px) {
             }
@@ -319,8 +385,6 @@
             var nostr_privkey = 'ea4f49a2103cac3c46dbf06a420c404a98e42a5536ec42edd0faeba938efae82';
             var nostr_pubkey = super_nostr.getPubkey( nostr_privkey );
             var relay = 'wss://relay.notoshi.win/';
-            var tickets = [];
-            var tickets_loaded = false;
             (async()=>{
                 var events = await super_nostr.getEvents( relay, null, [ nostr_pubkey ] );
                 var i; for ( i=0; i<events.length; i++ ) {
@@ -328,11 +392,11 @@
                     try {
                         var ticket_info = JSON.parse( event.content );
                         if ( ticket_info[ 0 ] === "LN" ) tickets.push( ticket_info[ 1 ] );
+                        var tickets_remaining = 8 - tickets.length;
+                        if ( tickets_remaining < 0 ) tickets_remaining = 0;
+                        $( '.tickets_remaining' ).innerText = tickets_remaining;
                     } catch ( e ) {}
                 }
-                var num_remaining = 8 - events.length;
-                if ( num_remaining < 0 ) num_remaining = 0;
-                $( '.tickets_remaining' ).innerText = num_remaining;
                 $( '.loading_tickets' ).innerText = 'Tickets loaded!';
                 tickets_loaded = true;
             })();
@@ -349,13 +413,12 @@
                 var nwc_string = 'nostr+walletconnect://72bdbc57bdd6dfc4e62685051de8041d148c3c68fe42bf301f71aa6cf53e52fb?relay=wss%3A%2F%2Frelay.coinos.io&secret=095c11c7fae26fb163018e03374753415ac2e0441cbf773c4db5ab47eccfafee&lud16=supertestnet@coinos.io';
                 var nwc_info = nwcjs.processNWCstring( nwc_string );
                 var delay_tolerance = 10;
-                console.log( 'loading...' );
                 var invoice_data = await nwcjs.makeInvoice( nwc_info, 15_000, "test_workshop", delay_tolerance );
 
-                //display the invoice
-                var bolt11 = invoice_data.result.invoice;
+                // //display the invoice
+                bolt11 = invoice_data.result.invoice;
                 // await nwcjs.waitSomeSeconds( 1 );
-                // var bolt11 = '3382a362f4d741f90ce1797af69d467a0800d1c982295522b971fe30a1608b9b88c52f99eb6964b3078db11b29768a186102232556d20bed907da0f965e2963a10127b1bb2cf42e525ba230b403417cb137276889a1cf61a7304e081c4508693a6765febc1e64e219c41934cbadf18ea53c51af5395e3cee8c0f0b619f79f6f';
+                // bolt11 = '3382a362f4d741f90ce1797af69d467a0800d1c982295522b971fe30a1608b9b88c52f99eb6964b3078db11b29768a186102232556d20bed907da0f965e2963a10127b1bb2cf42e525ba230b403417cb137276889a1cf61a7304e081c4508693a6765febc1e64e219c41934cbadf18ea53c51af5395e3cee8c0f0b619f79f6f';
                 var url = "lightning:" + bolt11;
                 var a = document.createElement( "a" );
                 a.href = url;
@@ -367,11 +430,58 @@
 
                 //I often delete the next four lines and just work with div_html -- see 'For a pretty donation box try this'
                 $( '.ticket_center' ).innerHTML = `
-                    <div style="max-width: 15rem; margin: auto; background-color: white; padding: 1rem;">${div_html}<div class="copy_box"><input class="copy_addy" value="${bolt11}" disabled=""> <span>&nbsp;</span><div class="copy_btn">⎘</div></div></div>
+                    <div class="pill-switch" role="tablist">
+                        <button class="pill-btn ln_btn active" data-tab="ln" role="tab">Lightning</button>
+                        <button class="pill-btn l1_btn" data-tab="l1" role="tab">Address</button>
+                    </div>
+                    <div class="qr_div">
+                        <div style="max-width: 15rem; margin: auto; background-color: white; padding: 1rem;">${div_html}<div class="copy_box"><input class="copy_addy" value="${bolt11}" disabled=""> <span>&nbsp;</span><div class="copy_btn">⎘</div></div></div>
+                    </div>
                     <p>
                         After you pay, your ticket will be displayed in this window.
                     </p>
                 `;
+                $( '.l1_btn' ).onclick = () => {
+                    $( '.ln_btn' ).classList.remove( "active" );
+                    $( '.l1_btn' ).classList.add( "active" );
+                    var address = getNativeSegwitAddressFromPubkeyHex( unused_l1_pubkeys[ 0 ] );
+                    var url = "bitcoin:" + address;
+                    var a = document.createElement( "a" );
+                    a.href = url;
+                    a.target = "_blank";
+                    a.append( createQR( address.toUpperCase() ) );
+                    var prep_div = document.createElement( "div" );
+                    prep_div.append( a );
+                    var div_html = prep_div.innerHTML;
+                    $( '.qr_div' ).innerHTML = `<div style="max-width: 15rem; margin: auto; background-color: white; padding: 1rem;">${div_html}<div class="copy_box"><input class="copy_addy" value="${address}" disabled=""> <span>&nbsp;</span><div class="copy_btn">⎘</div></div></div>`;
+                    $( '.copy_btn' ).onclick = () => {
+                        var copytext = $( '.copy_addy' );
+                        copytext.select();
+                        copytext.setSelectionRange( 0, 99999 );
+                        navigator.clipboard.writeText( copytext.value );
+                        showToast( 'copied' );
+                    }
+                }
+                $( '.ln_btn' ).onclick = () => {
+                    $( '.ln_btn' ).classList.add( "active" );
+                    $( '.l1_btn' ).classList.remove( "active" );
+                    var url = "lightning:" + bolt11;
+                    var a = document.createElement( "a" );
+                    a.href = url;
+                    a.target = "_blank";
+                    a.append( createQR( bolt11.toUpperCase() ) );
+                    var prep_div = document.createElement( "div" );
+                    prep_div.append( a );
+                    var div_html = prep_div.innerHTML;
+                    $( '.qr_div' ).innerHTML = `<div style="max-width: 15rem; margin: auto; background-color: white; padding: 1rem;">${div_html}<div class="copy_box"><input class="copy_addy" value="${bolt11}" disabled=""> <span>&nbsp;</span><div class="copy_btn">⎘</div></div></div>`;
+                    $( '.copy_btn' ).onclick = () => {
+                        var copytext = $( '.copy_addy' );
+                        copytext.select();
+                        copytext.setSelectionRange( 0, 99999 );
+                        navigator.clipboard.writeText( copytext.value );
+                        showToast( 'copied' );
+                    }
+                }
                 $( '.copy_btn' ).onclick = () => {
                     var copytext = $( '.copy_addy' );
                     copytext.select();
@@ -380,12 +490,19 @@
                     showToast( 'copied' );
                 }
 
-                //check if the invoice is paid
+                //check if the invoice or btc address is paid
+                var invoice_is_paid = false;
                 var loop = async () => {
                     await nwcjs.waitSomeSeconds( 5 );
                     var status_data = await nwcjs.checkInvoice( nwc_info, bolt11, delay_tolerance );
+                    var address = getNativeSegwitAddressFromPubkeyHex( unused_l1_pubkeys[ 0 ] );
+                    var utxos = await chain_client.commander( server, 'utxos', address );
                     try {
-                        if ( status_data.result.settled_at ) return;
+                        if ( status_data.result.settled_at ) {
+                            invoice_is_paid = true;
+                            return;
+                        }
+                        if ( utxos.length ) return;
                     } catch ( e ) {
                         return loop();
                     }
@@ -394,7 +511,8 @@
                 await loop();
 
                 //inform user invoice is paid
-                var ticket = invoice_data.result.payment_hash;
+                if ( invoice_is_paid ) var ticket = invoice_data.result.payment_hash;
+                else var ticket = unused_l1_pubkeys[ 0 ];
                 await nwcjs.waitSomeSeconds( 1 );
                 var url = ticket;
                 var div = document.createElement( "div" );
@@ -414,11 +532,14 @@
                         Please take a screenshot of your ticket or print this page. You must present your ticket at the workshop to be seated and to receive your reimbursement.
                     </p>
                 `;
-                console.log( 'Paid! Here is your ticket:', invoice_data.result.payment_hash );
                 $( '.tickets_remaining' ).innerText = Number( $( '.tickets_remaining' ).innerText ) - 1;
 
                 //send event to nostr so ticket info is logged
-                var event = await super_nostr.prepEvent( nostr_privkey, JSON.stringify([ "LN", invoice_data.result.payment_hash ]), 44382 );
+                if ( invoice_is_paid ) {
+                    var event = await super_nostr.prepEvent( nostr_privkey, JSON.stringify([ "LN", ticket ]), 44382 );
+                } else {
+                    var event = await super_nostr.prepEvent( nostr_privkey, JSON.stringify([ "L1", ticket ]), 44382 );
+                }
                 super_nostr.sendEvent( event, relay );
             }
             var showPage = page => {
