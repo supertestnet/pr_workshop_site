@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <title>Bitcoin Script Workshop</title>
+        <script src="https://bundle.run/noble-secp256k1@1.2.14"></script>
+        <script src="https://supertestnet.github.io/nwcjs/nwcjs.js"></script>
+        <script src="https://supertestnet.github.io/bankify/super_nostr.js"></script>
+        <script src="https://supertestnet.github.io/bitcoin-chess/js/qrcode.js"></script>
+        <script>
+            var createQR = content => {
+                var dataUriPngImage = document.createElement( "img" ),
+                s = QRCode.generatePNG( content, {
+                    ecclevel: "M",
+                    format: "html",
+                    fillcolor: "#FFFFFF",
+                    textcolor: "#000000",
+                    margin: 4,
+                    modulesize: 8,
+                });
+                dataUriPngImage.src = s;
+                dataUriPngImage.className = "qr_code";
+                dataUriPngImage.style.width = "100%";
+                return dataUriPngImage;
+            }
+        </script>
+        <style>
+            * {
+                box-sizing: border-box;
+                font-size: 1.15rem;
+                font-family: monospace;
+            }
+            body, html {
+                margin: 0;
+                padding: 0;
+                height: 100%;
+                background: #000;
+                line-height: 1.25;
+                color: white;
+            }
+
+            .streaks {
+                position: fixed;
+                inset: 0;
+                pointer-events: none;
+            }
+
+            .streak {
+                position: absolute;
+                background: linear-gradient(
+                    to bottom,
+                    transparent 0%,
+                    #ff8800 45%,
+                    #ffaa33 55%,
+                    transparent 100%
+                );
+                width: 10px;
+                height: 180px;
+                filter: blur(5px);
+                opacity: 0;
+                animation: fall linear infinite;
+                transform-origin: top center;
+            }
+
+            @keyframes fall {
+                0% {
+                    opacity: 0;
+                    transform: translateY(-120%) skewY(8deg);
+                }
+                4% {
+                    opacity: 0.8;
+                }
+                12% {
+                    opacity: 1;
+                }
+                25% {
+                    opacity: 0.5;
+                }
+                100% {
+                    opacity: 0;
+                    transform: translateY(300vh) skewY(8deg);
+                }
+            }
+
+            /* Different starting positions, lengths, speeds, delays */
+            .streak:nth-child(1)  { left: 6%;   height: 160px; animation-duration: 5.8s;  animation-delay: -0.9s; }
+            .streak:nth-child(2)  { left: 14%;  height: 220px; animation-duration: 7.1s;  animation-delay: -3.2s; }
+            .streak:nth-child(3)  { left: 21%;  height: 140px; animation-duration: 4.9s;  animation-delay: -1.4s; }
+            .streak:nth-child(4)  { left: 29%;  height: 280px; animation-duration: 8.6s;  animation-delay: -5.1s; }
+            .streak:nth-child(5)  { left: 37%;  height: 190px; animation-duration: 6.4s;  animation-delay: -0.7s; }
+            .streak:nth-child(6)  { left: 44%;  height: 320px; animation-duration: 9.2s;  animation-delay: -4.3s; }
+            .streak:nth-child(7)  { left: 52%;  height: 150px; animation-duration: 5.3s;  animation-delay: -2.1s; }
+            .streak:nth-child(8)  { left: 59%;  height: 240px; animation-duration: 7.5s;  animation-delay: -3.8s; }
+            .streak:nth-child(9)  { left: 67%;  height: 180px; animation-duration: 6.1s;  animation-delay: -1.2s; }
+            .streak:nth-child(10) { left: 74%;  height: 350px; animation-duration: 10.4s; animation-delay: -6.7s; }
+            .streak:nth-child(11) { left: 81%;  height: 130px; animation-duration: 4.6s;  animation-delay: -1.8s; }
+            .streak:nth-child(12) { left: 88%;  height: 260px; animation-duration: 8.0s;  animation-delay: -4.9s; }
+            .streak:nth-child(13) { left: 3%;   height: 300px; animation-duration: 9.0s;  animation-delay: -6.2s; }
+            .streak:nth-child(14) { left: 95%;  height: 170px; animation-duration: 5.7s;  animation-delay: -0.5s; }
+        </style>
+        <style>
+            .body_container {
+                width: 100%;
+                max-width: 800px;
+                margin: auto;
+                padding-bottom: 1rem;
+            }
+            .body {
+                margin: 3rem 1rem;
+                word-wrap: break-word;
+            }
+            h1 {
+                font-size: 2rem;
+                text-decoration: underline;
+            }
+            h2 {
+                font-size: 1.5rem;
+            }
+            input {
+                line-height: 1.25;
+                width: 100%;
+                height: 1.8rem;
+                font-size: 1.15rem;
+                border: 1px solid grey;
+            }
+            .hidden {
+                display: none !important;
+            }
+            .bold {
+                font-weight: bold;
+            }
+            .section {
+                border: 1px solid white;
+                border-radius: 1rem;
+                padding: 1rem;
+            }
+            .ticket_box {
+                max-width: 15rem;
+                margin: auto;
+                font-size: 80%;
+                text-align: center;
+            }
+            @media screen and (max-width: 600px) {
+            }
+        </style>
+        <style>
+            .copy_box {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                height: 2.2rem;
+            }
+            .copy_addy {
+                width: 100%;
+                max-width: 78%;
+                word-wrap: break-word;
+                background-color: #cccccc;
+                border: 1px solid black;
+                padding: .3rem;
+                height: 100%;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                display: block;
+                user-select: none;
+            }
+            .copy_btn {
+                width: 100%;
+                max-width: 18%;
+                text-align: center;
+                background-color: #cccccc;
+                border: 1px solid black;
+                padding: .3rem;
+                height: 100%;
+                padding-top: 3%;
+                cursor: pointer;
+            }
+            .toast {
+                box-sizing: border-box;
+                visibility: hidden;
+                width: 250px;
+                margin-left: -125px;
+                background-color: rgb(97, 235, 52);
+                color: white;
+                text-align: center;
+                border-radius: 2px;
+                padding: 16px;
+                position: fixed;
+                z-index: 1;
+                left: 50%;
+                bottom: 30px;
+            }
+
+            .toast.show {
+                visibility: visible;
+                -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
+                animation: fadein 0.5s, fadeout 0.5s 2.5s;
+            }
+
+            @-webkit-keyframes fadein {
+                from {bottom: 0; opacity: 0;}
+                to {bottom: 30px; opacity: 1;}
+            }
+
+            @keyframes fadein {
+                from {bottom: 0; opacity: 0;}
+                to {bottom: 30px; opacity: 1;}
+            }
+
+            @-webkit-keyframes fadeout {
+                from {bottom: 30px; opacity: 1;}
+                to {bottom: 0; opacity: 0;}
+            }
+
+            @keyframes fadeout {
+                from {bottom: 30px; opacity: 1;}
+                to {bottom: 0; opacity: 0;}
+            }
+        </style>
+        <script>
+            var showToast = content => {
+                $( '.toast' ).innerHTML = content;
+                $( '.toast' ).classList.add( "show" );
+                setTimeout( () => $( '.toast' ).classList.remove( "show" ), 3000 );
+            }
+        </script>
+        <script>
+            var $ = document.querySelector.bind( document );
+            var $$ = document.querySelectorAll.bind( document );
+            var url_params = new URLSearchParams( window.location.search );
+            var url_keys = url_params.keys();
+            var $_GET = {}
+            for ( var key of url_keys ) $_GET[ key ] = url_params.get( key );
+            var hash_arr = window.location.href.substring( window.location.href.indexOf( "#" ) ).split( "#" );
+            hash_arr.splice( 0, 1 );
+            var $_HASH = {}
+            hash_arr.forEach( item => {
+                var vals = item.split( "=" );
+                $_HASH[ vals[ 0 ] ] = vals[ 1 ];
+            });
+        </script>
+    </head>
+    <body>
+        <div class="streaks">
+            <div class="streak"></div>
+            <div class="streak"></div>
+            <div class="streak"></div>
+            <div class="streak"></div>
+            <div class="streak"></div>
+            <div class="streak"></div>
+            <div class="streak"></div>
+            <div class="streak"></div>
+            <div class="streak"></div>
+            <div class="streak"></div>
+            <div class="streak"></div>
+            <div class="streak"></div>
+            <div class="streak"></div>
+            <div class="streak"></div>
+        </div>
+        <div class="body_container">
+            <div class="body">
+                <div class="webpage home_page">
+                    <h1>Bitcoin Script Workshop</h1>
+                    <div class="section">
+                        <p>
+                            Learn to use Bitcoin Script
+                        </p>
+                        <p>
+                            In this workshop, renowned bitcoin educator Super Testnet will teach you how to write smart contracts using the Bitcoin Script programming language. Each participant will create a simple smart contract called an Oracle, based on a fictional upcoming sporting event, where two people bet a certain amount on the outcome, and the winner gets the sum.
+                        </p>
+                        <p>
+                            By writing this simple app from scratch, you'll learn the basics of programming in a bitcoin environment, how to use the blockchain, and can carry these skills forward for a prospective future as a bitcoin developer. Please bring a standard laptop to participate in the workshop -- nothing else is required!
+                        </p>
+                    </div>
+                    <p>
+                        Where: Maria Guevara Library @ Sagrado Corazón University, Estudio Room
+                    </p>
+                    <p>
+                        When: Saturday, March 21 at 2:00 pm
+                    </p>
+                    <p>
+                        Cost: 15,000 sats (about $10), to be reimbursed during the workshop
+                    </p>
+                    <p>
+                        Tickets remaining: <span class="tickets_remaining">loading...</span>
+                    </p>
+                    <p>
+                        <button class="buy_ticket">Buy ticket</button>
+                    </p>
+                    <div class="ticket_center section hidden">
+                        <h2>Ticket center</h2>
+                        <p>Loading ticket...</p>
+                    </div>
+                </div>
+                <div class="webpage validation_page hidden">
+                    <h1>Validate a ticket</h1>
+                    <p class="loading_tickets">Loading tickets...</p>
+                    <p>Enter a ticket</p>
+                    <p><input class="ticket_text"></p>
+                    <p><button class="submit_ticket">Submit</button>
+                </div>
+            </div>
+        </div>
+        <script>
+            //nwcjs.bytesToHex( nobleSecp256k1.utils.randomPrivateKey() );
+            var nostr_privkey = 'a0d63fe3ebf0eda0d750e8e38b19a564d7f3faf6ae5c7181ee39be17fdbbab67';
+            var nostr_pubkey = super_nostr.getPubkey( nostr_privkey );
+            var relay = 'wss://relay.notoshi.win/';
+            var tickets = [];
+            var tickets_loaded = false;
+            (async()=>{
+                var events = await super_nostr.getEvents( relay, null, [ nostr_pubkey ] );
+                events.forEach( event => tickets.push( event.content ) );
+                var num_remaining = 8 - events.length;
+                if ( num_remaining < 0 ) num_remaining = 0;
+                $( '.tickets_remaining' ).innerText = num_remaining;
+                $( '.loading_tickets' ).innerText = 'Tickets loaded!';
+                tickets_loaded = true;
+            })();
+            $( '.buy_ticket' ).onclick = async () => {
+                if ( !tickets_loaded ) return alert( 'please wait til the number of tickets remaining are known' );
+                if ( Number( $( '.tickets_remaining' ).innerText ) < 1 ) return alert( 'sorry, no tickets remaining' );
+                $( '.buy_ticket' ).onclick = null;
+
+                //show ticket center
+                $( '.ticket_center' ).classList.remove( "hidden" );
+                window.scrollTo( 0, window.scrollY + 100 );
+
+                //get an invoice
+                var nwc_string = 'nostr+walletconnect://72bdbc57bdd6dfc4e62685051de8041d148c3c68fe42bf301f71aa6cf53e52fb?relay=wss%3A%2F%2Frelay.coinos.io&secret=095c11c7fae26fb163018e03374753415ac2e0441cbf773c4db5ab47eccfafee&lud16=supertestnet@coinos.io';
+                var nwc_info = nwcjs.processNWCstring( nwc_string );
+                var delay_tolerance = 10;
+                console.log( 'loading...' );
+                var invoice_data = await nwcjs.makeInvoice( nwc_info, 200, "test_workshop", delay_tolerance );
+
+                //display the invoice
+                var bolt11 = invoice_data.result.invoice;
+                // await nwcjs.waitSomeSeconds( 1 );
+                // var bolt11 = '3382a362f4d741f90ce1797af69d467a0800d1c982295522b971fe30a1608b9b88c52f99eb6964b3078db11b29768a186102232556d20bed907da0f965e2963a10127b1bb2cf42e525ba230b403417cb137276889a1cf61a7304e081c4508693a6765febc1e64e219c41934cbadf18ea53c51af5395e3cee8c0f0b619f79f6f';
+                var url = "lightning:" + bolt11;
+                var a = document.createElement( "a" );
+                a.href = url;
+                a.target = "_blank";
+                a.append( createQR( bolt11.toUpperCase() ) );
+                var prep_div = document.createElement( "div" );
+                prep_div.append( a );
+                var div_html = prep_div.innerHTML;
+
+                //I often delete the next four lines and just work with div_html -- see 'For a pretty donation box try this'
+                $( '.ticket_center' ).innerHTML = `
+                    <div style="max-width: 15rem; margin: auto; background-color: white; padding: 1rem;">${div_html}<div class="copy_box"><input class="copy_addy" value="${bolt11}" disabled=""> <span>&nbsp;</span><div class="copy_btn">⎘</div></div></div>
+                    <p>
+                        After you pay, your ticket will be displayed in this window.
+                    </p>
+                `;
+                $( '.copy_btn' ).onclick = () => {
+                    var copytext = $( '.copy_addy' );
+                    copytext.select();
+                    copytext.setSelectionRange( 0, 99999 );
+                    navigator.clipboard.writeText( copytext.value );
+                    showToast( 'copied' );
+                }
+
+                //check if the invoice is paid
+                var loop = async () => {
+                    await nwcjs.waitSomeSeconds( 5 );
+                    var status_data = await nwcjs.checkInvoice( nwc_info, bolt11, delay_tolerance );
+                    try {
+                        if ( status_data.result.settled_at ) return;
+                    } catch ( e ) {
+                        return loop();
+                    }
+                    return loop();
+                }
+                await loop();
+
+                //inform user invoice is paid
+                var ticket = invoice_data.result.payment_hash;
+                await nwcjs.waitSomeSeconds( 1 );
+                var url = ticket;
+                var a = document.createElement( "a" );
+                a.href = url;
+                a.target = "_blank";
+                a.append( createQR( ticket.toUpperCase() ) );
+                var prep_div = document.createElement( "div" );
+                prep_div.append( a );
+                var div_html = prep_div.innerHTML;
+
+                //I often delete the next four lines and just work with div_html -- see 'For a pretty donation box try this'
+                $( '.ticket_center' ).innerHTML = `
+                    <p style="text-align: center;">Your ticket</p>
+                    <div style="max-width: 15rem; margin: auto; background-color: white; padding: 1rem;">${div_html}</div>
+                    <div class="ticket_box">${ticket}</div>
+                    <p>
+                        Please take a screenshot of your ticket or print this page. You must present your ticket at the workshop to be seated and to receive your reimbursement.
+                    </p>
+                `;
+                console.log( 'Paid! Here is your ticket:', invoice_data.result.payment_hash );
+                $( '.tickets_remaining' ).innerText = Number( $( '.tickets_remaining' ).innerText ) - 1;
+
+                //send event to nostr so ticket info is logged
+                var event = await super_nostr.prepEvent( nostr_privkey, invoice_data.result.payment_hash, 44382 );
+                super_nostr.sendEvent( event, relay );
+            }
+            var showPage = page => {
+                $$( '.webpage' ).forEach( item => item.classList.add( "hidden" ) );
+                $( `.${page}` ).classList.remove( "hidden" );
+            }
+            if ( $_GET[ "validation" ] ) {showPage( 'validation_page' );}
+            $( '.submit_ticket' ).onclick = async () => {
+                var submitted_ticket = $( '.ticket_text' ).value;
+                if ( !tickets.includes( submitted_ticket ) ) return alert( 'The ticket is invalid' );
+                alert( 'The ticket is valid' );
+            }
+        </script>
+        <div class="toast"></div>
+    </body>
+</html>
