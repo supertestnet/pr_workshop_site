@@ -338,7 +338,7 @@
                 var nwc_info = nwcjs.processNWCstring( nwc_string );
                 var delay_tolerance = 10;
                 console.log( 'loading...' );
-                var invoice_data = await nwcjs.makeInvoice( nwc_info, 200, "test_workshop", delay_tolerance );
+                var invoice_data = await nwcjs.makeInvoice( nwc_info, 10_000, "test_workshop", delay_tolerance );
 
                 //display the invoice
                 var bolt11 = invoice_data.result.invoice;
