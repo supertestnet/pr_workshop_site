@@ -15,7 +15,7 @@
             var tickets = [];
             var tickets_loaded = false;
             // var server = `wss://blackie.c3-soft.com:57012`;
-            var server = `wss://mempool.guide/electrum-websocket/`;
+            var server = `wss://blackie.c3-soft.com:57004`;
             var getNativeSegwitAddressFromPubkeyHex = pubkeyhex => tapscript.Address.p2wpkh.fromPubKey( pubkeyhex );
             // var getNativeSegwitAddressFromPubkeyHex = pubkeyhex => tapscript.Address.p2wpkh.fromPubKey( pubkeyhex, "testnet" );
             var createQR = content => {
