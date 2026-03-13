@@ -383,10 +383,10 @@
                         var tickets_remaining = 8 - tickets.length;
                         if ( tickets_remaining < 0 ) tickets_remaining = 0;
                         $( '.tickets_remaining' ).innerText = tickets_remaining;
-                        $( '.loading_tickets' ).innerText = 'Tickets loaded!';
-                        tickets_loaded = true;
                     } catch ( e ) {}
                 }
+                $( '.loading_tickets' ).innerText = 'Tickets loaded!';
+                tickets_loaded = true;
             })();
             $( '.buy_ticket' ).onclick = async () => {
                 if ( !tickets_loaded ) return alert( 'please wait til the number of tickets remaining are known' );
