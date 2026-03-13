@@ -374,9 +374,7 @@
             var nostr_pubkey = super_nostr.getPubkey( nostr_privkey );
             var relay = 'wss://nostr.mom';
             (async()=>{
-                console.log( 0 );
                 var events = await super_nostr.getEvents( relay, null, [ nostr_pubkey ] );
-                console.log( 1 );
                 var i; for ( i=0; i<events.length; i++ ) {
                     var event = events[ i ];
                     try {
@@ -387,10 +385,9 @@
                         $( '.tickets_remaining' ).innerText = tickets_remaining;
                     } catch ( e ) {}
                 }
-                console.log( 2 );
                 $( '.loading_tickets' ).innerText = 'Tickets loaded!';
-                console.log( 3 );
                 tickets_loaded = true;
+                $( '.tickets_remaining' ).innerText = 8 - tickets.length;
             })();
             $( '.buy_ticket' ).onclick = async () => {
                 if ( !tickets_loaded ) return alert( 'please wait til the number of tickets remaining are known' );
