@@ -372,7 +372,7 @@
             //nwcjs.bytesToHex( nobleSecp256k1.utils.randomPrivateKey() );
             var nostr_privkey = 'ea4f49a2103cac3c46dbf06a420c404a98e42a5536ec42edd0faeba938efae82';
             var nostr_pubkey = super_nostr.getPubkey( nostr_privkey );
-            var relay = 'wss://relay.notoshi.win/';
+            var relay = 'wss://nostr.mom';
             (async()=>{
                 var events = await super_nostr.getEvents( relay, null, [ nostr_pubkey ] );
                 var i; for ( i=0; i<events.length; i++ ) {
