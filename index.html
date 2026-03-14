@@ -14,7 +14,7 @@
             var tickets = [];
             var tickets_loaded = false;
             // var server = `wss://blackie.c3-soft.com:57012`;
-            var server = `wss://blackie.c3-soft.com:57004`;
+            var server = `wss://btc.electroncash.dk:60004`;
             var getNativeSegwitAddressFromPubkeyHex = pubkeyhex => tapscript.Address.p2wpkh.fromPubKey( pubkeyhex );
             // var getNativeSegwitAddressFromPubkeyHex = pubkeyhex => tapscript.Address.p2wpkh.fromPubKey( pubkeyhex, "testnet" );
             var createQR = content => {
@@ -398,25 +398,6 @@
                 $( '.ticket_center' ).classList.remove( "hidden" );
                 window.scrollTo( 0, window.scrollY + 100 );
 
-                //get an invoice
-                var nwc_string = 'nostr+walletconnect://72bdbc57bdd6dfc4e62685051de8041d148c3c68fe42bf301f71aa6cf53e52fb?relay=wss%3A%2F%2Frelay.coinos.io&secret=095c11c7fae26fb163018e03374753415ac2e0441cbf773c4db5ab47eccfafee&lud16=supertestnet@coinos.io';
-                var nwc_info = nwcjs.processNWCstring( nwc_string );
-                var delay_tolerance = 10;
-                var invoice_data = await nwcjs.makeInvoice( nwc_info, 15_000, "test_workshop", delay_tolerance );
-
-                // //display the invoice
-                bolt11 = invoice_data.result.invoice;
-                // await nwcjs.waitSomeSeconds( 1 );
-                // bolt11 = '3382a362f4d741f90ce1797af69d467a0800d1c982295522b971fe30a1608b9b88c52f99eb6964b3078db11b29768a186102232556d20bed907da0f965e2963a10127b1bb2cf42e525ba230b403417cb137276889a1cf61a7304e081c4508693a6765febc1e64e219c41934cbadf18ea53c51af5395e3cee8c0f0b619f79f6f';
-                var url = "lightning:" + bolt11;
-                var a = document.createElement( "a" );
-                a.href = url;
-                a.target = "_blank";
-                a.append( createQR( bolt11.toUpperCase() ) );
-                var prep_div = document.createElement( "div" );
-                prep_div.append( a );
-                var div_html = prep_div.innerHTML;
-
                 //I often delete the next four lines and just work with div_html -- see 'For a pretty donation box try this'
                 $( '.ticket_center' ).innerHTML = `
                     <div class="pill-switch" role="tablist">
@@ -424,7 +405,7 @@
                         <button class="pill-btn l1_btn" data-tab="l1" role="tab">Address</button>
                     </div>
                     <div class="qr_div">
-                        <div style="max-width: 15rem; margin: auto; background-color: white; padding: 1rem;">${div_html}<div class="copy_box"><input class="copy_addy" value="${bolt11}" disabled=""> <span>&nbsp;</span><div class="copy_btn">⎘</div></div></div>
+                        <div style="max-width: 15rem; margin: auto; background-color: white; padding: 1rem;"><div class="copy_box"><input class="copy_addy" disabled=""> <span>&nbsp;</span><div class="copy_btn">⎘</div></div></div>
                     </div>
                     <p>
                         After you pay, your ticket will be displayed in this window.
@@ -451,9 +432,15 @@
                         showToast( 'copied' );
                     }
                 }
-                $( '.ln_btn' ).onclick = () => {
+                $( '.ln_btn' ).onclick = async () => {
                     $( '.ln_btn' ).classList.add( "active" );
                     $( '.l1_btn' ).classList.remove( "active" );
+                    if ( !bolt11 ) {
+                        await nwcjs.waitSomeSeconds( 1 );
+                        $( '.l1_btn' ).click();
+                        await nwcjs.waitSomeSeconds( 1 );
+                        alert( 'something went wrong with the lightning option, please try again' );
+                    }
                     var url = "lightning:" + bolt11;
                     var a = document.createElement( "a" );
                     a.href = url;
@@ -478,15 +465,35 @@
                     navigator.clipboard.writeText( copytext.value );
                     showToast( 'copied' );
                 }
+                $( '.l1_btn' ).click();
+
+                //get an invoice
+                var nwc_string = 'nostr+walletconnect://72bdbc57bdd6dfc4e62685051de8041d148c3c68fe42bf301f71aa6cf53e52fb?relay=wss%3A%2F%2Frelay.coinos.io&secret=095c11c7fae26fb163018e03374753415ac2e0441cbf773c4db5ab47eccfafee&lud16=supertestnet@coinos.io';
+                var nwc_info = nwcjs.processNWCstring( nwc_string );
+                var delay_tolerance = 10;
+                var invoice_data = await nwcjs.makeInvoice( nwc_info, 15_000, "test_workshop", delay_tolerance );
+
+                // //display the invoice
+                bolt11 = invoice_data.result.invoice;
+                // await nwcjs.waitSomeSeconds( 1 );
+                // bolt11 = '3382a362f4d741f90ce1797af69d467a0800d1c982295522b971fe30a1608b9b88c52f99eb6964b3078db11b29768a186102232556d20bed907da0f965e2963a10127b1bb2cf42e525ba230b403417cb137276889a1cf61a7304e081c4508693a6765febc1e64e219c41934cbadf18ea53c51af5395e3cee8c0f0b619f79f6f';
+                var url = "lightning:" + bolt11;
+                var a = document.createElement( "a" );
+                a.href = url;
+                a.target = "_blank";
+                a.append( createQR( bolt11.toUpperCase() ) );
+                var prep_div = document.createElement( "div" );
+                prep_div.append( a );
+                var div_html = prep_div.innerHTML;
 
                 //check if the invoice or btc address is paid
                 var invoice_is_paid = false;
                 var loop = async () => {
                     await nwcjs.waitSomeSeconds( 5 );
-                    var status_data = await nwcjs.checkInvoice( nwc_info, bolt11, delay_tolerance );
-                    var address = getNativeSegwitAddressFromPubkeyHex( unused_l1_pubkeys[ 0 ] );
-                    var utxos = await chain_client.commander( server, 'utxos', address );
                     try {
+                        var status_data = await nwcjs.checkInvoice( nwc_info, bolt11, delay_tolerance );
+                        var address = getNativeSegwitAddressFromPubkeyHex( unused_l1_pubkeys[ 0 ] );
+                        var utxos = await chain_client.commander( server, 'utxos', address );
                         if ( status_data.result.settled_at ) {
                             invoice_is_paid = true;
                             return;
